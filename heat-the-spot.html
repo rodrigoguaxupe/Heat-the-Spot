@@ -1,0 +1,995 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Heat the Spot</title>
+<style>
+  :root{
+    --paper:#FAFAFA;
+    --card:#FFFFFF;
+    --ink:#1D1D1F;
+    --ink-soft:#6E6E73;
+    --ink-faint:#AEAEB2;
+    --line:#E5E5E7;
+    --line-soft:#F0F0F1;
+    --blue:#0071E3;
+    --heat-1:#FFB020;
+    --heat-2:#FF6A3D;
+    --heat-3:#E0342A;
+    --green:#2FA84F;
+    --amber-bg:#FFF6E5;
+    --amber-ink:#9A6400;
+    --green-bg:#EAF7EE;
+    --green-ink:#1E7B3A;
+    --radius:14px;
+    --radius-sm:10px;
+    font-family:-apple-system,BlinkMacSystemFont,"SF Pro Display","SF Pro Text","Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--paper);color:var(--ink);}
+  body{-webkit-font-smoothing:antialiased;}
+  a{color:inherit;text-decoration:none;}
+  button{font-family:inherit;cursor:pointer;}
+
+  .topbar{
+    position:sticky;top:0;z-index:50;
+    background:rgba(250,250,250,0.82);
+    backdrop-filter:saturate(180%) blur(20px);
+    -webkit-backdrop-filter:saturate(180%) blur(20px);
+    border-bottom:1px solid var(--line);
+  }
+  .topbar-inner{
+    max-width:1240px;margin:0 auto;padding:14px 28px;
+    display:flex;align-items:center;justify-content:space-between;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-mark{
+    width:26px;height:26px;border-radius:7px;
+    background:linear-gradient(135deg,var(--heat-1),var(--heat-3));
+    display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:700;font-size:13px;
+  }
+  .brand-name{font-weight:600;font-size:15px;letter-spacing:-0.01em;}
+  .profile-pill{
+    width:30px;height:30px;border-radius:50%;
+    background:var(--ink);color:#fff;
+    font-size:12px;font-weight:600;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .topbar-right{display:flex;align-items:center;gap:12px;}
+  .li-connect-btn{
+    display:flex;align-items:center;gap:7px;
+    background:#0A66C2;color:#fff;border:none;border-radius:20px;
+    padding:8px 14px 8px 10px;font-size:12.5px;font-weight:600;
+  }
+  .li-connect-btn:hover{background:#0958A7;}
+  .li-connect-btn svg{flex:none;}
+  .li-status{
+    display:flex;align-items:center;gap:8px;
+    background:var(--green-bg);color:var(--green-ink);
+    border-radius:20px;padding:6px 12px 6px 8px;font-size:12px;font-weight:600;
+  }
+  .li-status .li-dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+  .li-status button{
+    border:none;background:transparent;color:var(--green-ink);
+    text-decoration:underline;font-size:11px;font-weight:600;padding:0;margin-left:4px;opacity:0.75;
+  }
+  .li-status button:hover{opacity:1;}
+  .li-modal-overlay{
+    position:fixed;inset:0;background:rgba(29,29,31,0.4);
+    display:none;align-items:center;justify-content:center;z-index:100;
+    padding:20px;
+  }
+  .li-modal-overlay.open{display:flex;}
+  .li-modal{
+    background:#fff;border-radius:18px;max-width:420px;width:100%;
+    padding:28px;box-shadow:0 20px 60px rgba(0,0,0,0.25);
+  }
+  .li-modal h3{font-size:18px;font-weight:700;margin:0 0 8px;letter-spacing:-0.01em;}
+  .li-modal p{font-size:13px;color:var(--ink-soft);line-height:1.55;margin:0 0 16px;}
+  .li-modal .steps{font-size:12.5px;color:var(--ink-soft);line-height:1.7;margin:0 0 20px;padding-left:18px;}
+  .li-drop{
+    border:1.5px dashed var(--line);border-radius:var(--radius-sm);
+    padding:24px;text-align:center;margin-bottom:14px;cursor:pointer;
+    transition:border-color .15s,background .15s;
+  }
+  .li-drop:hover, .li-drop.dragover{border-color:#0A66C2;background:#F5F9FE;}
+  .li-drop .li-drop-icon{margin-bottom:8px;}
+  .li-drop .li-drop-title{font-size:13px;font-weight:600;margin-bottom:2px;}
+  .li-drop .li-drop-sub{font-size:11.5px;color:var(--ink-faint);}
+  .li-modal-actions{display:flex;justify-content:flex-end;gap:10px;}
+  .li-btn-secondary{
+    border:none;background:var(--line-soft);color:var(--ink-soft);
+    border-radius:9px;padding:9px 14px;font-size:12.5px;font-weight:600;
+  }
+  .li-progress{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;display:none;}
+  .li-progress.show{display:block;}
+  .li-error{font-size:12px;color:#C0392B;margin-bottom:10px;display:none;background:#FDECEA;border-radius:8px;padding:10px 12px;}
+  .li-error.show{display:block;}
+
+  .hero{max-width:1240px;margin:0 auto;padding:56px 28px 28px;}
+  .hero h1{
+    font-size:44px;font-weight:700;letter-spacing:-0.03em;margin:0 0 6px;
+  }
+  .hero .meta{font-size:12.5px;color:var(--ink-faint);text-transform:uppercase;letter-spacing:0.06em;font-weight:600;}
+
+  .layout{
+    max-width:1240px;margin:0 auto;padding:0 28px 80px;
+    display:grid;grid-template-columns:1fr 360px;gap:24px;
+    align-items:start;
+  }
+  @media (max-width:900px){
+    .layout{grid-template-columns:1fr;}
+    .hero h1{font-size:34px;}
+  }
+
+  /* Main panel */
+  .panel{
+    background:var(--card);
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    overflow:hidden;
+  }
+  .toolbar{
+    display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+    padding:16px 20px;border-bottom:1px solid var(--line);
+  }
+  .segmented{
+    display:flex;background:var(--line-soft);border-radius:9px;padding:3px;gap:2px;
+  }
+  .segmented button{
+    border:none;background:transparent;padding:6px 13px;border-radius:7px;
+    font-size:12.5px;font-weight:600;color:var(--ink-soft);
+  }
+  .segmented button.active{background:#fff;color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,0.08);}
+  .search{
+    flex:1;min-width:160px;
+    background:var(--line-soft);border-radius:9px;padding:7px 12px;
+    display:flex;align-items:center;gap:6px;
+  }
+  .search input{
+    border:none;background:transparent;outline:none;font-size:13px;width:100%;color:var(--ink);
+  }
+  .search input::placeholder{color:var(--ink-faint);}
+  .filter-chip{
+    font-size:11.5px;font-weight:600;color:var(--ink-soft);
+    background:var(--line-soft);border-radius:20px;padding:6px 12px;
+    display:flex;align-items:center;gap:6px;white-space:nowrap;
+  }
+  .filter-chip input{margin:0;}
+  .excluded-note{font-size:11.5px;color:var(--blue);font-weight:600;white-space:nowrap;}
+
+  .cols{
+    display:grid;grid-template-columns:36px 1fr 90px 80px 70px;
+    padding:10px 20px;font-size:10.5px;font-weight:700;color:var(--ink-faint);
+    letter-spacing:0.06em;text-transform:uppercase;
+    border-bottom:1px solid var(--line);
+  }
+  @media (max-width:640px){
+    .cols{grid-template-columns:28px 1fr 60px;}
+    .col-signal,.col-conn{display:none;}
+  }
+
+  .rows{}
+  .row{
+    border-bottom:1px solid var(--line-soft);
+  }
+  .row:last-child{border-bottom:none;}
+  .row-head{
+    display:grid;grid-template-columns:36px 1fr 90px 80px 70px;
+    align-items:center;padding:14px 20px;gap:8px;
+  }
+  @media (max-width:640px){
+    .row-head{grid-template-columns:28px 1fr 60px;}
+  }
+  .row-head:hover{background:var(--line-soft);cursor:pointer;}
+  .rank{font-size:13px;color:var(--ink-faint);font-weight:600;font-variant-numeric:tabular-nums;}
+  .agency-name{font-size:14.5px;font-weight:600;letter-spacing:-0.01em;}
+  .agency-sub{font-size:11px;color:var(--ink-faint);margin-top:1px;}
+  .signal{display:flex;align-items:center;gap:5px;font-size:10.5px;font-weight:700;color:var(--ink-soft);}
+  .signal .arrow{font-size:11px;}
+  .signal.up{color:var(--green-ink);}
+  .conn-count{font-size:13px;font-weight:600;}
+  .conn-label{font-size:10.5px;color:var(--ink-faint);}
+  .score-wrap{text-align:right;}
+  .score{font-size:19px;font-weight:700;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;}
+  .score-bar-track{height:3px;background:var(--line);border-radius:2px;margin-top:5px;overflow:hidden;}
+  .score-bar-fill{height:100%;border-radius:2px;background:linear-gradient(90deg,var(--heat-1),var(--heat-3));}
+
+  .row-detail{
+    display:none;
+    padding:0 20px 24px;
+    background:linear-gradient(180deg,#FBFBFC,#FAFAFA);
+    border-top:1px solid var(--line-soft);
+  }
+  .row.expanded .row-detail{display:block;}
+  .row.expanded .row-head{background:var(--line-soft);}
+
+  .detail-grid{
+    display:grid;grid-template-columns:1.3fr 0.7fr 0.7fr 1fr;gap:24px;
+    padding:20px 0 18px;
+  }
+  @media (max-width:760px){.detail-grid{grid-template-columns:1fr 1fr;}}
+  .detail-block .label{font-size:10px;font-weight:700;color:var(--ink-faint);letter-spacing:0.06em;text-transform:uppercase;margin-bottom:6px;}
+  .detail-block .why-title{font-size:14px;font-weight:700;margin-bottom:4px;}
+  .detail-block .why-body{font-size:12.5px;color:var(--ink-soft);line-height:1.5;}
+  .detail-block .big-num{font-size:24px;font-weight:700;letter-spacing:-0.02em;}
+  .detail-block .sub-num{font-size:11px;color:var(--ink-faint);margin-top:10px;}
+  .detail-block .sub-num-val{font-size:16px;font-weight:700;color:var(--ink);}
+  .live-data-text{font-size:12px;color:var(--ink-soft);line-height:1.5;margin-bottom:10px;}
+  .btn-network{
+    display:inline-flex;align-items:center;gap:6px;
+    background:var(--blue);color:#fff;font-size:12.5px;font-weight:600;
+    padding:9px 14px;border-radius:9px;border:none;
+  }
+
+  .connections-section{border-top:1px solid var(--line);padding-top:18px;}
+  .connections-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:12px;}
+  .connections-title{font-size:13.5px;font-weight:700;}
+  .connections-hint{font-size:11px;color:var(--ink-faint);}
+  .empty-connections{
+    background:#fff;border:1px dashed var(--line);border-radius:var(--radius-sm);
+    padding:16px;font-size:12px;color:var(--ink-soft);
+  }
+  .empty-connections b{color:var(--ink);font-size:12.5px;}
+
+  .contacts-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:640px){.contacts-grid{grid-template-columns:1fr;}}
+  .contact-card{
+    background:#fff;border:1px solid var(--line);border-radius:var(--radius-sm);
+    padding:14px;display:flex;gap:12px;align-items:flex-start;
+  }
+  .avatar{
+    width:36px;height:36px;border-radius:50%;flex:none;
+    background:var(--line-soft);color:var(--ink-soft);
+    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;
+  }
+  .contact-info{flex:1;min-width:0;}
+  .contact-name{font-size:13.5px;font-weight:700;}
+  .contact-role{font-size:12px;color:var(--ink-soft);margin-top:1px;}
+  .contact-co{font-size:11.5px;color:var(--ink-faint);margin-top:1px;}
+  .contact-tags{display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;}
+  .tag{font-size:10px;font-weight:600;padding:3px 8px;border-radius:20px;background:var(--line-soft);color:var(--ink-soft);}
+  .tag.warm{background:var(--green-bg);color:var(--green-ink);}
+  .contact-priority{text-align:right;flex:none;}
+  .contact-priority .p-label{font-size:9px;color:var(--ink-faint);font-weight:700;letter-spacing:0.05em;}
+  .contact-priority .p-val{font-size:16px;font-weight:700;color:var(--blue);}
+
+  .fine-print{font-size:10.5px;color:var(--ink-faint);margin-top:14px;}
+
+  /* Sidebar */
+  .sidebar{display:flex;flex-direction:column;gap:20px;position:sticky;top:78px;}
+  .side-card{
+    background:var(--card);border:1px solid var(--line);border-radius:var(--radius);
+    padding:18px 18px 6px;
+  }
+  .side-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+  .side-title{display:flex;align-items:center;gap:8px;font-size:14px;font-weight:700;}
+  .dot{width:7px;height:7px;border-radius:50%;background:var(--green);}
+  .dot.idle{background:var(--ink-faint);}
+  .refresh-btn{
+    width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background:#fff;
+    display:flex;align-items:center;justify-content:center;color:var(--ink-soft);
+  }
+  .refresh-btn:hover{background:var(--line-soft);}
+  .side-sub{font-size:10.5px;color:var(--ink-faint);}
+  .update-item{padding:12px 0;border-top:1px solid var(--line-soft);}
+  .update-item:first-of-type{border-top:none;}
+  .update-date{font-size:10px;color:var(--ink-faint);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+  .update-tags{display:flex;gap:5px;margin-bottom:7px;}
+  .update-tag{font-size:9.5px;font-weight:700;padding:2.5px 7px;border-radius:20px;text-transform:uppercase;letter-spacing:0.03em;}
+  .update-tag.news{background:var(--green-bg);color:var(--green-ink);}
+  .update-tag.review{background:var(--amber-bg);color:var(--amber-ink);}
+  .update-tag.newwork{background:#E9F1FF;color:var(--blue);}
+  .update-agency{font-size:12.5px;font-weight:700;margin-bottom:3px;}
+  .update-headline{font-size:12px;color:var(--ink-soft);line-height:1.45;margin-bottom:6px;}
+  .update-source{font-size:11.5px;color:var(--blue);font-weight:600;}
+  .side-footer{
+    display:flex;justify-content:space-between;font-size:10.5px;color:var(--ink-faint);
+    padding:12px 0;border-top:1px solid var(--line-soft);margin-top:2px;
+  }
+
+  .empty-panel{
+    padding:24px 0 18px;text-align:left;
+  }
+  .empty-panel .eb{font-size:12.5px;font-weight:700;margin-bottom:4px;}
+  .empty-panel .es{font-size:11.5px;color:var(--ink-soft);line-height:1.5;}
+
+  ::selection{background:#FFE0B2;}
+</style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="brand-mark">H</div>
+      <div class="brand-name">Heat the Spot</div>
+    </div>
+    <div class="topbar-right">
+      <div id="liDisconnected">
+        <button class="li-connect-btn" id="openLiModal">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="#fff"><path d="M20.45 20.45h-3.56v-5.57c0-1.33-.02-3.04-1.85-3.04-1.85 0-2.14 1.45-2.14 2.94v5.67H9.34V9h3.42v1.56h.05c.48-.9 1.64-1.85 3.38-1.85 3.6 0 4.27 2.37 4.27 5.46v6.28zM5.34 7.43a2.07 2.07 0 11.02-4.14 2.07 2.07 0 01-.02 4.14zM7.12 20.45H3.56V9h3.56v11.45z"/></svg>
+          Connect LinkedIn
+        </button>
+      </div>
+      <div id="liConnected" class="li-status" style="display:none;">
+        <span class="li-dot"></span>
+        <span id="liStatusText">Connected</span>
+        <button id="liDisconnectBtn">Disconnect</button>
+      </div>
+      <div class="profile-pill">RR</div>
+    </div>
+  </div>
+</div>
+
+<!-- LinkedIn upload modal -->
+<div class="li-modal-overlay" id="liModalOverlay">
+  <div class="li-modal">
+    <h3>Connect your LinkedIn data</h3>
+    <p>Heat the Spot never asks for your LinkedIn password. Upload your official LinkedIn data export instead &mdash; it's read in this browser and matched against the agencies you're tracking.</p>
+    <ol class="steps">
+      <li>On LinkedIn: Settings &rarr; Data privacy &rarr; Get a copy of your data</li>
+      <li>Select "Connections" and request the archive</li>
+      <li>Download the .zip LinkedIn emails you, then drop it below</li>
+    </ol>
+    <div class="li-error" id="liError"></div>
+    <div class="li-progress" id="liProgress">Reading your file&hellip;</div>
+    <div class="li-drop" id="liDrop">
+      <div class="li-drop-icon">
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" stroke-width="1.8"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><path d="M17 8l-5-5-5 5"/><path d="M12 3v12"/></svg>
+      </div>
+      <div class="li-drop-title">Drop your LinkedIn export here</div>
+      <div class="li-drop-sub">.zip from LinkedIn, or Connections.csv directly &middot; click to browse</div>
+    </div>
+    <input type="file" id="liFileInput" accept=".zip,.csv" style="display:none;">
+    <div class="li-modal-actions">
+      <button class="li-btn-secondary" id="liCancelBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="hero">
+  <h1>Heat the Spot</h1>
+  <div class="meta" id="agencyCount">50 agencies tracked</div>
+</div>
+
+<div class="layout">
+
+  <!-- MAIN PANEL -->
+  <div class="panel">
+    <div class="toolbar">
+      <div class="segmented" id="sortSeg">
+        <button class="active" data-sort="opportunity">Opportunity</button>
+        <button data-sort="heat">Agency heat</button>
+        <button data-sort="access">Your access</button>
+      </div>
+      <div class="search">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input id="searchInput" type="text" placeholder="Search agencies">
+      </div>
+      <label class="filter-chip">
+        <input type="checkbox" id="minConnFilter">
+        10+ connections
+      </label>
+      <div class="excluded-note">Not showing BBDO New York</div>
+    </div>
+
+    <div class="cols">
+      <div>Rank</div>
+      <div>Agency</div>
+      <div class="col-signal">Signal</div>
+      <div class="col-conn">Connections</div>
+      <div style="text-align:right;">Score</div>
+    </div>
+
+    <div class="rows" id="rowsContainer"></div>
+  </div>
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+    <div class="side-card">
+      <div class="side-head">
+        <div class="side-title"><span class="dot idle" id="newsDot"></span>Agency Updates</div>
+        <button class="refresh-btn" id="refreshNews" title="Refresh">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M23 4v6h-6"/><path d="M1 20v-6h6"/><path d="M3.51 9a9 9 0 0114.13-3.36L23 10M1 14l5.36 4.36A9 9 0 0020.49 15"/></svg>
+        </button>
+      </div>
+      <div id="newsList"></div>
+      <div class="side-footer">
+        <span id="newsChecked">Not checked yet</span>
+        <span>Manual refresh</span>
+      </div>
+    </div>
+
+    <div class="side-card">
+      <div class="side-head">
+        <div class="side-title">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2"><rect x="2" y="2" width="20" height="20" rx="3"/></svg>
+          LinkedIn Connections
+        </div>
+      </div>
+      <div class="empty-panel">
+        <div class="eb">No verified job changes yet</div>
+        <div class="es">When one of your key connections changes companies, it will appear here after you approve a verified update.</div>
+      </div>
+      <div class="side-footer">
+        <span id="connCountFooter">0 key connections</span>
+        <span>Manual review only</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ---------- SEED DATA ----------
+// Edit this array directly to update agencies. Real connections/contacts
+// get added later per-agency inside `contacts: []`.
+const AGENCIES = [
+  {rank:1,name:"McCann New York",conn:5,score:48,heat:50,access:45,trend:"up",contacts:[]},
+  {rank:2,name:"Mischief",conn:3,score:45,heat:48,access:42,trend:"down",contacts:[]},
+  {rank:3,name:"Publicis New York",conn:5,score:45,heat:50,access:38,trend:"up",contacts:[
+    {name:"Danielle Vallejo",role:"VP, Creative Recruiting Director",co:"Publicis Groupe",priority:76,tags:["Direct Publicis NY","Warm"]},
+    {name:"Kristy Foss",role:"Director of Creative Recruiting",co:"Saatchi & Saatchi and Publicis Agencies",priority:70,tags:["New York recruiting","Light contact"]},
+    {name:"Emeka Okoloji",role:"Recruiter",co:"Publicis Media",priority:69,tags:["Publicis Media NY","Warm"]},
+    {name:"Claire Telling",role:"EVP, Executive Recruitment",co:"Publicis Groupe",priority:49,tags:["Publicis Groupe NY","Unproven"]},
+    {name:"Marissa Jones",role:"Account Director",co:"Publicis Groupe",priority:41,tags:["Publicis Groupe NY","Unproven"]}
+  ]},
+  {rank:4,name:"Droga5 New York",conn:3,score:43,heat:46,access:40,trend:"down",contacts:[]},
+  {rank:5,name:"Ogilvy New York",conn:3,score:43,heat:46,access:40,trend:"down",contacts:[]},
+  {rank:6,name:"R/GA New York",conn:3,score:43,heat:46,access:40,trend:"down",contacts:[]},
+  {rank:7,name:"Havas New York",conn:3,score:43,heat:46,access:40,trend:"down",contacts:[]},
+  {rank:8,name:"VML New York",conn:4,score:42,heat:45,access:38,trend:"down",contacts:[]},
+  {rank:9,name:"Tombras New York",conn:2,score:41,heat:44,access:36,trend:"down",contacts:[]},
+  {rank:10,name:"Anomaly New York",conn:2,score:41,heat:44,access:36,trend:"down",contacts:[]},
+  {rank:11,name:"Saatchi & Saatchi New York",conn:2,score:41,heat:44,access:36,trend:"down",contacts:[]},
+  {rank:12,name:"The Community",conn:3,score:41,heat:43,access:38,trend:"down",contacts:[]},
+  {rank:13,name:"Fallon",conn:3,score:41,heat:43,access:38,trend:"down",contacts:[]},
+  {rank:14,name:"DAVID New York",conn:3,score:41,heat:43,access:38,trend:"down",contacts:[]},
+  {rank:15,name:"Highdive",conn:2,score:41,heat:44,access:36,trend:"down",contacts:[]},
+  {rank:16,name:"Terri & Sandy",conn:2,score:39,heat:42,access:34,trend:"down",contacts:[]},
+  {rank:17,name:"Wieden+Kennedy New York",conn:2,score:39,heat:42,access:34,trend:"down",contacts:[]},
+  {rank:18,name:"VaynerMedia",conn:2,score:39,heat:42,access:34,trend:"down",contacts:[]},
+  {rank:19,name:"Johannes Leonardo",conn:2,score:39,heat:42,access:34,trend:"down",contacts:[]},
+  {rank:20,name:"We Are Social",conn:2,score:39,heat:42,access:34,trend:"down",contacts:[]},
+  {rank:21,name:"Code and Theory",conn:2,score:37,heat:40,access:32,trend:"down",contacts:[]},
+  {rank:22,name:"Rethink New York",conn:1,score:37,heat:41,access:30,trend:"down",contacts:[]},
+  {rank:23,name:"Translation",conn:2,score:37,heat:40,access:32,trend:"down",contacts:[]},
+  {rank:24,name:"Pereira O'Dell",conn:2,score:37,heat:40,access:32,trend:"down",contacts:[]},
+  {rank:25,name:"Mother New York",conn:1,score:36,heat:40,access:29,trend:"down",contacts:[]},
+  {rank:26,name:"Grey New York",conn:1,score:36,heat:40,access:29,trend:"down",contacts:[]},
+  {rank:27,name:"Dentsu Creative New York",conn:1,score:36,heat:40,access:29,trend:"down",contacts:[]},
+  {rank:28,name:"Special US",conn:1,score:36,heat:40,access:29,trend:"down",contacts:[]},
+  {rank:29,name:"JOAN",conn:1,score:36,heat:40,access:29,trend:"down",contacts:[]},
+  {rank:30,name:"LOLA USA",conn:1,score:36,heat:40,access:29,trend:"down",contacts:[]},
+  {rank:31,name:"GUT New York",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:32,name:"TBWA\\Chiat\\Day New York",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:33,name:"72andSunny New York",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:34,name:"Deutsch New York",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:35,name:"Big Spaceship",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:36,name:"AKQA New York",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:37,name:"Forsman & Bodenfors New York",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:38,name:"BBH New York",conn:0,score:33,heat:38,access:26,trend:"down",contacts:[]},
+  {rank:39,name:"Digitas",conn:0,score:33,heat:38,access:26,trend:"down",contacts:[]},
+  {rank:40,name:"MRM",conn:0,score:32,heat:37,access:25,trend:"down",contacts:[]},
+  {rank:41,name:"360i",conn:0,score:32,heat:37,access:25,trend:"down",contacts:[]},
+  {rank:42,name:"Razorfish",conn:0,score:32,heat:37,access:25,trend:"down",contacts:[]},
+  {rank:43,name:"Merkley + Partners",conn:0,score:31,heat:36,access:24,trend:"down",contacts:[]},
+  {rank:44,name:"Leo Burnett",conn:0,score:33,heat:38,access:26,trend:"down",contacts:[]},
+  {rank:45,name:"Preacher",conn:0,score:30,heat:35,access:23,trend:"down",contacts:[]},
+  {rank:46,name:"Mekanism",conn:0,score:30,heat:35,access:23,trend:"down",contacts:[]},
+  {rank:47,name:"Baldwin&",conn:0,score:29,heat:34,access:22,trend:"down",contacts:[]},
+  {rank:48,name:"Cashmere Agency",conn:0,score:29,heat:34,access:22,trend:"down",contacts:[]},
+  {rank:49,name:"Movement Strategy",conn:0,score:29,heat:34,access:22,trend:"down",contacts:[]},
+  {rank:50,name:"West BBDO",conn:0,score:30,heat:35,access:23,trend:"down",contacts:[]},
+];
+// BBDO New York exists in the dataset (rank/score tracked) but is excluded
+// from view since it's the user's current employer.
+const EXCLUDED_AGENCY = {name:"BBDO New York", reason:"current employer"};
+
+// Starts empty on purpose — click the refresh icon to pull real, live
+// coverage for your top agencies. No placeholder/fake news is shown.
+const NEWS = [];
+
+const TAG_LABELS = {news:"News",review:"Review",newwork:"New work"};
+
+// ---------- STATE ----------
+let sortMode = "opportunity";
+let searchQuery = "";
+let minConnOnly = false;
+let expandedRank = null;
+
+// ---------- RENDER ----------
+function initials(name){
+  return name.split(" ").map(w=>w[0]).slice(0,2).join("").toUpperCase();
+}
+
+function sortedAgencies(){
+  let list = AGENCIES.filter(a=>{
+    if(minConnOnly && a.conn < 10) return false;
+    if(searchQuery && !a.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+    return true;
+  });
+  if(sortMode === "heat") list = [...list].sort((a,b)=>b.heat-a.heat);
+  else if(sortMode === "access") list = [...list].sort((a,b)=>b.access-a.access);
+  else list = [...list].sort((a,b)=>b.score-a.score);
+  return list;
+}
+
+function renderRows(){
+  const container = document.getElementById("rowsContainer");
+  const list = sortedAgencies();
+  const maxScore = Math.max(...AGENCIES.map(a=>a.score));
+  container.innerHTML = list.map(a=>{
+    const isOpen = expandedRank === a.rank;
+    const arrow = a.trend === "up" ? "&uarr;" : a.trend === "down" ? "&darr;" : "&middot;";
+    const barPct = Math.round((a.score/maxScore)*100);
+    return `
+    <div class="row ${isOpen?'expanded':''}" data-rank="${a.rank}">
+      <div class="row-head" onclick="toggleRow(${a.rank})">
+        <div class="rank">${String(a.rank).padStart(2,'0')}</div>
+        <div>
+          <div class="agency-name">${a.name}</div>
+          <div class="agency-sub">LinkedIn data &middot; Aug 12, 2026</div>
+        </div>
+        <div class="signal col-signal ${a.trend}"><span class="arrow">${arrow}</span> STEADY</div>
+        <div class="col-conn">
+          <div class="conn-count">${a.conn}</div>
+          <div class="conn-label">connections</div>
+        </div>
+        <div class="score-wrap">
+          <div class="score">${a.score}</div>
+          <div class="score-bar-track"><div class="score-bar-fill" style="width:${barPct}%"></div></div>
+        </div>
+      </div>
+      ${isOpen ? renderDetail(a) : ""}
+    </div>`;
+  }).join("");
+}
+
+function renderDetail(a){
+  const contactsHtml = a.contacts.length ? `
+    <div class="contacts-grid">
+      ${a.contacts.map(c=>`
+        <div class="contact-card">
+          <div class="avatar">${initials(c.name)}</div>
+          <div class="contact-info">
+            <div class="contact-name">${c.name}</div>
+            <div class="contact-role">${c.role}</div>
+            <div class="contact-co">${c.co}</div>
+            <div class="contact-tags">${c.tags.map(t=>`<span class="tag ${t==='Warm'?'warm':''}">${t}</span>`).join("")}</div>
+          </div>
+          <div class="contact-priority">
+            <div class="p-label">PRIORITY</div>
+            <div class="p-val">${c.priority}</div>
+          </div>
+        </div>
+      `).join("")}
+    </div>
+  ` : `
+    <div class="empty-connections">
+      <b>No office-verified connections yet</b><br>
+      Contacts with an unclear city stay hidden until their location is confirmed.
+    </div>
+  `;
+
+  return `
+    <div class="row-detail">
+      <div class="detail-grid">
+        <div class="detail-block">
+          <div class="label">Why it is moving</div>
+          <div class="why-title">${a.name}</div>
+          <div class="why-body">No approved signals yet. Heat stays at the neutral starting point.</div>
+        </div>
+        <div class="detail-block">
+          <div class="label">Heat</div>
+          <div class="big-num">${a.heat}</div>
+          <div class="sub-num">Connections<br><span class="sub-num-val">${a.conn}</span></div>
+        </div>
+        <div class="detail-block">
+          <div class="label">Your access</div>
+          <div class="big-num">${a.access}</div>
+          <div class="sub-num">Open roles<br><span class="sub-num-val">Next</span></div>
+        </div>
+        <div class="detail-block">
+          <div class="label">Live data</div>
+          <div class="live-data-text">Connections use your LinkedIn export. Heat changes only after you approve a verified agency update.</div>
+          <button class="btn-network">See your network &rarr;</button>
+        </div>
+      </div>
+      <div class="connections-section">
+        <div class="connections-head">
+          <div class="connections-title">${a.contacts.length} verified New York key connection${a.contacts.length===1?'':'s'}</div>
+          <div class="connections-hint">Top contacts from your LinkedIn export</div>
+        </div>
+        ${contactsHtml}
+        <div class="fine-print">Visible only to you. Matches are based on company name from your LinkedIn export. LinkedIn's export doesn't include location, so office/city can't be verified automatically &mdash; review before treating a match as confirmed.</div>
+      </div>
+    </div>
+  `;
+}
+
+function toggleRow(rank){
+  expandedRank = expandedRank === rank ? null : rank;
+  renderRows();
+}
+
+function renderNews(){
+  const list = document.getElementById("newsList");
+  if(!NEWS.length){
+    list.innerHTML = `<div class="empty-panel"><div class="eb">No live checks yet</div><div class="es">Click the refresh icon above to pull real recent coverage for your top agencies.</div></div>`;
+    return;
+  }
+  list.innerHTML = NEWS.map(n=>`
+    <div class="update-item">
+      <div class="update-date">${n.date}</div>
+      <div class="update-tags">${n.tags.map(t=>`<span class="update-tag ${t}">${TAG_LABELS[t]||t}</span>`).join("")}</div>
+      <div class="update-agency">${n.agency}</div>
+      <div class="update-headline">${n.headline}</div>
+      ${n.link
+        ? `<a class="update-source" href="${n.link}" target="_blank" rel="noopener">${n.source} &nearr;</a>`
+        : `<div class="update-source">${n.source}</div>`}
+    </div>
+  `).join("");
+}
+
+function updateFooterCounts(){
+  const totalContacts = AGENCIES.reduce((s,a)=>s+a.contacts.length,0);
+  document.getElementById("connCountFooter").textContent = `${totalContacts} key connection${totalContacts===1?'':'s'}`;
+  document.getElementById("agencyCount").textContent = `${AGENCIES.length + 1} agencies tracked`;
+}
+
+// ---------- EVENTS ----------
+document.getElementById("sortSeg").addEventListener("click", (e)=>{
+  const btn = e.target.closest("button");
+  if(!btn) return;
+  document.querySelectorAll("#sortSeg button").forEach(b=>b.classList.remove("active"));
+  btn.classList.add("active");
+  sortMode = btn.dataset.sort;
+  renderRows();
+});
+
+document.getElementById("searchInput").addEventListener("input", (e)=>{
+  searchQuery = e.target.value;
+  renderRows();
+});
+
+document.getElementById("minConnFilter").addEventListener("change", (e)=>{
+  minConnOnly = e.target.checked;
+  renderRows();
+});
+
+// ---------- LIVE NEWS (automatic, powered by Firebase) ----------
+// A Cloud Function checks real news every 15 minutes in the background and
+// saves it here. This just displays whatever is currently saved — updates
+// automatically, no clicking needed.
+function startNewsListener(){
+  const dot = document.getElementById("newsDot");
+  const list = document.getElementById("newsList");
+  const checkedEl = document.getElementById("newsChecked");
+
+  if(typeof firebase === "undefined" || !window.FIREBASE_CONFIGURED){
+    list.innerHTML = `<div class="empty-panel"><div class="eb">Not connected yet</div><div class="es">Firebase isn't configured in this file yet.</div></div>`;
+    checkedEl.textContent = "Not connected";
+    return;
+  }
+
+  const ref = firebase.database().ref("newsUpdates");
+  ref.on("value", (snapshot) => {
+    const data = snapshot.val();
+    dot.classList.remove("idle");
+    if(!data || !data.items || !data.items.length){
+      list.innerHTML = `<div class="empty-panel"><div class="eb">No updates yet</div><div class="es">The background check hasn't run yet — it checks every 15 minutes automatically.</div></div>`;
+      checkedEl.textContent = "Waiting for first check";
+      return;
+    }
+    NEWS.length = 0;
+    NEWS.push(...data.items.map(n => ({
+      ...n,
+      date: n.date ? new Date(n.date).toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"}) : ""
+    })));
+    renderNews();
+    checkedEl.textContent = data.lastChecked
+      ? "Checked " + new Date(data.lastChecked).toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})
+      : "Live";
+  }, (error) => {
+    list.innerHTML = `<div class="empty-panel"><div class="eb">Couldn't connect</div><div class="es">${error.message}</div></div>`;
+    checkedEl.textContent = "Connection error";
+  });
+}
+
+document.getElementById("refreshNews").addEventListener("click", ()=>{
+  document.getElementById("newsChecked").textContent = "Updates automatically — no need to click";
+});
+
+// ---------- LINKEDIN CONNECT ----------
+const LI_STORAGE_KEY = "heatTheSpot_linkedInConnections_v1";
+
+function normalizeAgencyKey(name){
+  return name
+    .toLowerCase()
+    .replace(/\./g, "")
+    .replace(/new york|nyc|\\|&|,/g, " ")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Build a lookup of simplified agency name -> agency object (includes excluded BBDO)
+const ALL_TRACKED = [...AGENCIES, {rank:999, name:EXCLUDED_AGENCY.name, conn:0, score:0, heat:0, access:0, trend:"steady", contacts:[], excluded:true}];
+const AGENCY_LOOKUP = ALL_TRACKED.map(a=>({agency:a, key:normalizeAgencyKey(a.name)}));
+
+// Snapshot of hand-seeded contacts and scores so a LinkedIn upload/disconnect
+// can restore the original state instead of losing it.
+const SEED_CONTACTS = new Map(AGENCIES.map(a=>[a.rank, a.contacts.map(c=>({...c}))]));
+const SEED_STATS = new Map(AGENCIES.map(a=>[a.rank, {conn:a.conn, access:a.access, score:a.score}]));
+
+function restoreAgencyToSeed(a){
+  a.contacts = (SEED_CONTACTS.get(a.rank) || []).map(c=>({...c}));
+  const stats = SEED_STATS.get(a.rank);
+  if(stats){ a.conn = stats.conn; a.access = stats.access; a.score = stats.score; }
+}
+
+function matchAgencyByCompany(company){
+  if(!company) return null;
+  const c = normalizeAgencyKey(company);
+  if(!c) return null;
+  // exact match first
+  for(const {agency,key} of AGENCY_LOOKUP){
+    if(key === c) return agency;
+  }
+  // fallback: company name contains the agency's key as a whole word/segment.
+  // Only this direction (company includes agency key) is safe — matching the
+  // reverse direction (agency key includes company) risks collisions between
+  // similarly-named agencies, e.g. "West BBDO" vs "BBDO New York".
+  // Sort by key length descending so the most specific match wins
+  // (e.g. "west bbdo" is checked before the shorter "bbdo").
+  const candidates = AGENCY_LOOKUP
+    .filter(({key}) => key.length >= 3)
+    .sort((a,b) => b.key.length - a.key.length);
+  for(const {agency,key} of candidates){
+    const re = new RegExp("(^|\\s)" + key.replace(/[.*+?^${}()|[\]\\]/g,"\\$&") + "(\\s|$)");
+    if(re.test(c)) return agency;
+  }
+  return null;
+}
+
+function parseCSV(text){
+  const lines = text.split(/\r\n|\n|\r/);
+  // LinkedIn export prefixes Connections.csv with "Notes:" lines before the real header
+  let headerIdx = lines.findIndex(l => /^"?first name"?,/i.test(l.trim()));
+  if(headerIdx === -1) headerIdx = 0;
+  const relevant = lines.slice(headerIdx).filter(l => l.trim().length);
+  const rows = relevant.map(splitCSVLine);
+  const header = rows[0].map(h=>h.trim().toLowerCase());
+  return rows.slice(1).map(r=>{
+    const obj = {};
+    header.forEach((h,i)=> obj[h] = (r[i]||"").trim());
+    return obj;
+  });
+}
+
+function splitCSVLine(line){
+  const out = [];
+  let cur = "";
+  let inQuotes = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(line[i+1] === '"'){ cur += '"'; i++; }
+        else inQuotes = false;
+      } else cur += ch;
+    } else {
+      if(ch === '"') inQuotes = true;
+      else if(ch === ','){ out.push(cur); cur = ""; }
+      else cur += ch;
+    }
+  }
+  out.push(cur);
+  return out;
+}
+
+function computePriority(position){
+  const p = (position||"").toLowerCase();
+  let score = 30;
+  if(/chief|founder|partner|president/.test(p)) score += 30;
+  else if(/\bvp\b|vice president|svp|evp/.test(p)) score += 26;
+  else if(/director|head of/.test(p)) score += 20;
+  else if(/manager|lead\b/.test(p)) score += 12;
+  if(/recruit|talent acquisition|people\b/.test(p)) score += 15;
+  if(/creative/.test(p)) score += 5;
+  return Math.max(15, Math.min(95, score));
+}
+
+function tagsForPosition(position){
+  const p = (position||"").toLowerCase();
+  const tags = [];
+  if(/recruit|talent acquisition/.test(p)) tags.push("Recruiting");
+  if(/chief|founder|partner|president|\bvp\b|vice president|director|head of/.test(p)) tags.push("Leadership");
+  if(!tags.length) tags.push("Connection");
+  return tags;
+}
+
+function initialsFromParts(first,last){
+  return ((first||"")[0]||"") .toUpperCase() + ((last||"")[0]||"").toUpperCase();
+}
+
+function processConnectionRows(rows){
+  // Reset every agency back to its hand-seeded state before reapplying matches
+  AGENCIES.forEach(restoreAgencyToSeed);
+
+  const matchedByAgency = new Map();
+  let matchedCount = 0;
+
+  rows.forEach(r=>{
+    const company = r["company"] || r["current company"] || "";
+    const position = r["position"] || r["current position"] || "";
+    const first = r["first name"] || "";
+    const last = r["last name"] || "";
+    if(!company || !first) return;
+    const agency = matchAgencyByCompany(company);
+    if(!agency || agency.excluded) return;
+    matchedCount++;
+    const contact = {
+      name: `${first} ${last}`.trim(),
+      role: position || "Role not listed",
+      co: company,
+      priority: computePriority(position),
+      tags: tagsForPosition(position),
+      fromLinkedIn: true
+    };
+    if(!matchedByAgency.has(agency.rank)) matchedByAgency.set(agency.rank, []);
+    matchedByAgency.get(agency.rank).push(contact);
+  });
+
+  matchedByAgency.forEach((contacts, rank)=>{
+    const agency = AGENCIES.find(a=>a.rank===rank);
+    if(!agency) return;
+    contacts.sort((a,b)=>b.priority-a.priority);
+    agency.contacts = contacts;
+    agency.conn = contacts.length;
+    agency.access = Math.max(20, Math.min(60, 22 + contacts.length*4 + Math.round((contacts[0]?.priority||0)*0.15)));
+    agency.score = Math.round(agency.heat*0.55 + agency.access*0.45);
+  });
+
+  return matchedCount;
+}
+
+function saveConnectionsToStorage(rows){
+  try{
+    localStorage.setItem(LI_STORAGE_KEY, JSON.stringify({savedAt: Date.now(), rows}));
+  }catch(e){ /* storage may be unavailable, non-fatal */ }
+}
+
+function loadStoredConnections(){
+  try{
+    const raw = localStorage.getItem(LI_STORAGE_KEY);
+    if(!raw) return false;
+    const parsed = JSON.parse(raw);
+    if(!parsed.rows || !parsed.rows.length) return false;
+    const matchedCount = processConnectionRows(parsed.rows);
+    setLiConnectedUI(matchedCount, parsed.rows.length);
+    return true;
+  }catch(e){ return false; }
+}
+
+function setLiConnectedUI(matchedCount, totalCount){
+  document.getElementById("liDisconnected").style.display = "none";
+  document.getElementById("liConnected").style.display = "flex";
+  document.getElementById("liStatusText").textContent = `${matchedCount} matched of ${totalCount}`;
+}
+
+function setLiDisconnectedUI(){
+  document.getElementById("liDisconnected").style.display = "block";
+  document.getElementById("liConnected").style.display = "none";
+}
+
+async function handleLinkedInFile(file){
+  const errorEl = document.getElementById("liError");
+  const progressEl = document.getElementById("liProgress");
+  errorEl.classList.remove("show");
+  progressEl.classList.add("show");
+  try{
+    let csvText = null;
+    if(/\.zip$/i.test(file.name)){
+      const buf = await file.arrayBuffer();
+      const zip = await JSZip.loadAsync(buf);
+      const candidates = Object.keys(zip.files).filter(n =>
+        /connections\.csv$/i.test(n) &&
+        !n.includes("__MACOSX") &&
+        !/(^|\/)\._[^/]*$/.test(n)
+      );
+      const match = candidates[0];
+      if(!match) throw new Error("Couldn't find Connections.csv inside that zip.");
+      csvText = await zip.files[match].async("string");
+    } else if(/\.csv$/i.test(file.name)){
+      csvText = await file.text();
+    } else {
+      throw new Error("Please upload the .zip LinkedIn sent you, or Connections.csv directly.");
+    }
+    const rows = parseCSV(csvText);
+    if(!rows.length) throw new Error("That file didn't contain any connection rows.");
+    const matchedCount = processConnectionRows(rows);
+    saveConnectionsToStorage(rows);
+    setLiConnectedUI(matchedCount, rows.length);
+    renderRows();
+    updateFooterCounts();
+    closeLiModal();
+  }catch(err){
+    errorEl.textContent = err.message || "Something went wrong reading that file.";
+    errorEl.classList.add("show");
+  }finally{
+    progressEl.classList.remove("show");
+  }
+}
+
+function openLiModal(){
+  document.getElementById("liModalOverlay").classList.add("open");
+  document.getElementById("liError").classList.remove("show");
+}
+function closeLiModal(){
+  document.getElementById("liModalOverlay").classList.remove("open");
+}
+
+document.getElementById("openLiModal").addEventListener("click", openLiModal);
+document.getElementById("liCancelBtn").addEventListener("click", closeLiModal);
+document.getElementById("liModalOverlay").addEventListener("click", (e)=>{
+  if(e.target.id === "liModalOverlay") closeLiModal();
+});
+
+const liDrop = document.getElementById("liDrop");
+const liFileInput = document.getElementById("liFileInput");
+liDrop.addEventListener("click", ()=> liFileInput.click());
+liFileInput.addEventListener("change", (e)=>{
+  if(e.target.files[0]) handleLinkedInFile(e.target.files[0]);
+});
+liDrop.addEventListener("dragover", (e)=>{ e.preventDefault(); liDrop.classList.add("dragover"); });
+liDrop.addEventListener("dragleave", ()=> liDrop.classList.remove("dragover"));
+liDrop.addEventListener("drop", (e)=>{
+  e.preventDefault();
+  liDrop.classList.remove("dragover");
+  if(e.dataTransfer.files[0]) handleLinkedInFile(e.dataTransfer.files[0]);
+});
+
+document.getElementById("liDisconnectBtn").addEventListener("click", ()=>{
+  localStorage.removeItem(LI_STORAGE_KEY);
+  AGENCIES.forEach(restoreAgencyToSeed);
+  setLiDisconnectedUI();
+  renderRows();
+  updateFooterCounts();
+});
+
+// ---------- FIREBASE SETUP ----------
+// Paste your Firebase project config below (from Firebase Console →
+// Project Settings → General → Your apps → Config). This is safe to be
+// public — it's not a secret, just an address for your project.
+const firebaseConfig = {
+  apiKey: "AIzaSyBETGH-mVVxUNUCDabvFcx-W0ff4_--gXs",
+  authDomain: "heat-the-spot-31d61.firebaseapp.com",
+  databaseURL: "https://heat-the-spot-31d61-default-rtdb.firebaseio.com",
+  projectId: "heat-the-spot-31d61",
+  storageBucket: "heat-the-spot-31d61.firebasestorage.app",
+  messagingSenderId: "105667058576",
+  appId: "1:105667058576:web:8a1ea4752e74e657ccf115"
+};
+window.FIREBASE_CONFIGURED = !firebaseConfig.apiKey.startsWith("PASTE_");
+if(window.FIREBASE_CONFIGURED){
+  firebase.initializeApp(firebaseConfig);
+}
+
+// ---------- INIT ----------
+renderRows();
+renderNews();
+updateFooterCounts();
+loadStoredConnections();
+startNewsListener();
+</script>
+
+</body>
+</html>
