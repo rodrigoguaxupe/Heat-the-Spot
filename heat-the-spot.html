@@ -402,7 +402,7 @@ Connect LinkedIn
 <div class="news-scroll" id="newsScroll"><div id="newsList"></div></div>
 <div class="side-footer">
 <span id="newsChecked">Not checked yet</span>
-<span>Auto every 15 min</span>
+<span>Manual refresh</span>
 </div>
 </div>
 
@@ -843,9 +843,38 @@ renderRows();
 });
 }
 
-document.getElementById("refreshNews").addEventListener("click", ()=>{
-document.getElementById("newsChecked").textContent = "Updates automatically — no need to click";
-});
+const NEWSREFRESH_URL = "https://newsrefresh-105667058576.europe-west1.run.app";
+let refreshInFlight = false;
+
+async function triggerNewsRefresh(){
+if(refreshInFlight) return;
+refreshInFlight = true;
+const btn = document.getElementById("refreshNews");
+const checkedEl = document.getElementById("newsChecked");
+const dot = document.getElementById("newsDot");
+btn.disabled = true;
+btn.style.opacity = "0.5";
+dot.classList.remove("idle");
+dot.style.background = "var(--heat-1)";
+checkedEl.textContent = "Checking agencies… this can take up to a minute";
+try{
+const res = await fetch(NEWSREFRESH_URL, { method: "GET" });
+if(!res.ok) throw new Error("Server returned " + res.status);
+const data = await res.json().catch(()=>({}));
+checkedEl.textContent = data.scoredCount != null
+? `Checked just now — ${data.scoredCount} scored event${data.scoredCount===1?'':'s'}`
+: "Checked just now";
+}catch(err){
+checkedEl.textContent = "Refresh failed — try again in a moment";
+dot.style.background = "var(--red)";
+}finally{
+btn.disabled = false;
+btn.style.opacity = "1";
+refreshInFlight = false;
+}
+}
+
+document.getElementById("refreshNews").addEventListener("click", triggerNewsRefresh);
 
 // ---------- LINKEDIN CONNECT ----------
 const LI_STORAGE_KEY = "heatTheSpot_linkedInConnections_v1";
