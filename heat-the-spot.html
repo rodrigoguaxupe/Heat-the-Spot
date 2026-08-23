@@ -276,6 +276,8 @@ width:26px;height:26px;border-radius:50%;border:1px solid var(--line);background
 display:flex;align-items:center;justify-content:center;color:var(--ink-soft);
 }
 .refresh-btn:hover{background:var(--line-soft);}
+@keyframes spin{from{transform:rotate(0deg);}to{transform:rotate(360deg);}}
+.refresh-btn.spinning svg{animation:spin 0.8s linear infinite;}
 .side-sub{font-size:10.5px;color:var(--ink-faint);}
 .news-scroll{max-height:340px;overflow-y:auto;margin-right:-6px;padding-right:6px;}
 .update-item{padding:12px 0;border-top:1px solid var(--line-soft);}
@@ -298,6 +300,17 @@ padding:24px 0 18px;text-align:left;
 }
 .empty-panel .eb{font-size:12.5px;font-weight:700;margin-bottom:4px;}
 .empty-panel .es{font-size:11.5px;color:var(--ink-soft);line-height:1.5;}
+.move-item{padding:12px 0;border-top:1px solid var(--line-soft);}
+.move-item:first-of-type{border-top:none;}
+.move-date{font-size:10px;color:var(--ink-faint);font-weight:700;letter-spacing:0.04em;text-transform:uppercase;margin-bottom:6px;}
+.move-name{font-size:13px;font-weight:700;margin-bottom:2px;}
+.move-path{font-size:12px;color:var(--ink-soft);}
+.move-path b{color:var(--ink);}
+.move-arrow{color:var(--blue);margin:0 4px;}
+.remind-link{
+display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
+color:var(--blue);margin-top:10px;
+}
 ::selection{background:#FFE0B2;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -410,16 +423,13 @@ Connect LinkedIn
 <div class="side-head">
 <div class="side-title">
 <svg width="16" height="16" viewBox="0 0 24 24" fill="#0A66C2"><rect x="2" y="2" width="20" height="20" rx="3"/></svg>
-LinkedIn Connections
+LinkedIn Job Changes
 </div>
 </div>
-<div class="empty-panel">
-<div class="eb">No verified job changes yet</div>
-<div class="es">When one of your key connections changes companies, it will appear here after you approve a verified update.</div>
-</div>
+<div id="liMovesContainer"></div>
 <div class="side-footer">
 <span id="connCountFooter">0 key connections</span>
-<span>Manual review only</span>
+<span id="liLastChecked">Never updated</span>
 </div>
 </div>
 
@@ -854,6 +864,7 @@ const checkedEl = document.getElementById("newsChecked");
 const dot = document.getElementById("newsDot");
 btn.disabled = true;
 btn.style.opacity = "0.5";
+btn.classList.add("spinning");
 dot.classList.remove("idle");
 dot.style.background = "var(--heat-1)";
 checkedEl.textContent = "Checking agencies… this can take up to a minute";
@@ -870,6 +881,7 @@ dot.style.background = "var(--red)";
 }finally{
 btn.disabled = false;
 btn.style.opacity = "1";
+btn.classList.remove("spinning");
 refreshInFlight = false;
 }
 }
@@ -878,6 +890,7 @@ document.getElementById("refreshNews").addEventListener("click", triggerNewsRefr
 
 // ---------- LINKEDIN CONNECT ----------
 const LI_STORAGE_KEY = "heatTheSpot_linkedInConnections_v1";
+const LI_MOVES_KEY = "heatTheSpot_linkedInMoves_v1";
 
 // Build a lookup of simplified agency name -> agency object (includes excluded BBDO)
 const ALL_TRACKED = [...AGENCIES, {rank:999, name:EXCLUDED_AGENCY.name, conn:0, score:0, heat:0, access:0, trend:"steady", contacts:[], excluded:true, holdingGroup:EXCLUDED_AGENCY.holdingGroup}];
@@ -1003,6 +1016,81 @@ agency.score = Math.round(agency.heat*0.55 + agency.access*0.45);
 return matchedCount;
 }
 
+function personKey(r){
+const url = (r["url"] || r["linkedin url"] || "").trim();
+if(url) return url.toLowerCase();
+const first = (r["first name"]||"").trim().toLowerCase();
+const last = (r["last name"]||"").trim().toLowerCase();
+return first + " " + last;
+}
+
+function detectJobMoves(oldRows, newRows){
+if(!oldRows || !oldRows.length) return [];
+const oldByKey = new Map(oldRows.map(r=>[personKey(r), r]));
+const moves = [];
+newRows.forEach(r=>{
+const key = personKey(r);
+const prior = oldByKey.get(key);
+if(!prior) return;
+const oldCo = (prior["company"] || prior["current company"] || "").trim();
+const newCo = (r["company"] || r["current company"] || "").trim();
+if(oldCo && newCo && oldCo.toLowerCase() !== newCo.toLowerCase()){
+moves.push({
+name: `${r["first name"]||""} ${r["last name"]||""}`.trim(),
+from: oldCo,
+to: newCo,
+detectedAt: Date.now()
+});
+}
+});
+return moves;
+}
+
+function loadStoredMoves(){
+try{
+const raw = localStorage.getItem(LI_MOVES_KEY);
+return raw ? JSON.parse(raw) : [];
+}catch(e){ return []; }
+}
+
+function saveStoredMoves(moves){
+try{ localStorage.setItem(LI_MOVES_KEY, JSON.stringify(moves.slice(0,30))); }catch(e){}
+}
+
+function relativeTime(ts){
+if(!ts) return "Never updated";
+const days = Math.floor((Date.now()-ts)/86400000);
+if(days <= 0) return "Updated today";
+if(days === 1) return "Updated 1 day ago";
+return `Updated ${days} days ago`;
+}
+
+function renderMoves(){
+const container = document.getElementById("liMovesContainer");
+const moves = loadStoredMoves();
+if(!moves.length){
+container.innerHTML = `<div class="empty-panel"><div class="eb">No job changes detected yet</div><div class="es">Re-upload your LinkedIn export weekly and any connection who changed companies will show up here automatically.</div><a class="remind-link" href="https://calendar.google.com/calendar/render?action=TEMPLATE&text=Update+LinkedIn+export+on+Heat+the+Spot&recur=RRULE:FREQ=WEEKLY&details=Re-download+your+LinkedIn+connections+export+and+re-upload+it+to+Heat+the+Spot" target="_blank" rel="noopener">+ Add weekly reminder</a></div>`;
+return;
+}
+container.innerHTML = moves.map(m=>`
+<div class="move-item">
+<div class="move-date">${new Date(m.detectedAt).toLocaleDateString("en-US",{month:"short",day:"numeric"})}</div>
+<div class="move-name">${m.name}</div>
+<div class="move-path"><b>${m.from}</b><span class="move-arrow">&rarr;</span><b>${m.to}</b></div>
+</div>
+`).join("");
+}
+
+function updateLastCheckedBadge(){
+try{
+const raw = localStorage.getItem(LI_STORAGE_KEY);
+const parsed = raw ? JSON.parse(raw) : null;
+document.getElementById("liLastChecked").textContent = relativeTime(parsed?.savedAt);
+}catch(e){
+document.getElementById("liLastChecked").textContent = "Never updated";
+}
+}
+
 function saveConnectionsToStorage(rows){
 try{
 localStorage.setItem(LI_STORAGE_KEY, JSON.stringify({savedAt: Date.now(), rows}));
@@ -1057,11 +1145,20 @@ throw new Error("Please upload the .zip LinkedIn sent you, or Connections.csv di
 }
 const rows = parseCSV(csvText);
 if(!rows.length) throw new Error("That file didn't contain any connection rows.");
+const previousRaw = localStorage.getItem(LI_STORAGE_KEY);
+const previousRows = previousRaw ? (JSON.parse(previousRaw).rows || []) : [];
+const newMoves = detectJobMoves(previousRows, rows);
+if(newMoves.length){
+const existingMoves = loadStoredMoves();
+saveStoredMoves([...newMoves, ...existingMoves]);
+}
 const matchedCount = processConnectionRows(rows);
 saveConnectionsToStorage(rows);
 setLiConnectedUI(matchedCount, rows.length);
 renderRows();
 updateFooterCounts();
+renderMoves();
+updateLastCheckedBadge();
 closeLiModal();
 }catch(err){
 errorEl.textContent = err.message || "Something went wrong reading that file.";
@@ -1106,6 +1203,7 @@ AGENCIES.forEach(restoreAgencyToSeed);
 setLiDisconnectedUI();
 renderRows();
 updateFooterCounts();
+updateLastCheckedBadge();
 });
 
 // ---------- FIREBASE SETUP ----------
@@ -1129,6 +1227,8 @@ renderRows();
 renderNews();
 updateFooterCounts();
 loadStoredConnections();
+renderMoves();
+updateLastCheckedBadge();
 startNewsListener();
 startEventsListener();
 </script>
