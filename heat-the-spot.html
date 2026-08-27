@@ -311,6 +311,44 @@ padding:24px 0 18px;text-align:left;
 display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;
 color:var(--blue);margin-top:10px;
 }
+.all-conn-modal{max-width:520px;max-height:82vh;display:flex;flex-direction:column;padding:24px;}
+.all-conn-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.all-conn-head h3{font-size:17px;font-weight:700;margin:0;}
+.all-conn-close{border:none;background:transparent;font-size:22px;line-height:1;color:var(--ink-faint);cursor:pointer;padding:2px 6px;}
+.all-conn-close:hover{color:var(--ink);}
+.all-conn-search{margin-bottom:12px;padding:9px 12px;}
+.all-conn-search input{font-size:13.5px;}
+.all-conn-tabs{display:flex;gap:6px;margin-bottom:14px;}
+.all-conn-tab{
+border:none;background:var(--line-soft);color:var(--ink-soft);
+font-size:11.5px;font-weight:600;padding:7px 12px;border-radius:20px;
+}
+.all-conn-tab.active{background:var(--ink);color:#fff;}
+.all-conn-list{overflow-y:auto;flex:1;margin:0 -24px;padding:0 24px;display:flex;flex-direction:column;gap:10px;}
+.conn-card{
+display:flex;align-items:center;gap:12px;padding:12px;
+border:1px solid var(--line);border-radius:var(--radius-sm);background:#fff;
+}
+.conn-card .avatar{width:38px;height:38px;font-size:12px;flex:none;}
+.conn-card-info{flex:1;min-width:0;}
+.conn-card-name{font-size:13.5px;font-weight:700;}
+.conn-card-title{font-size:12px;color:var(--ink-soft);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.conn-card-company{font-size:11.5px;color:var(--ink-faint);margin-top:1px;}
+.conn-card-tracked{
+display:inline-block;font-size:9px;font-weight:700;color:var(--blue);background:#E9F1FF;
+padding:1px 6px;border-radius:20px;text-transform:uppercase;margin-top:4px;
+}
+.conn-card-actions{flex:none;display:flex;gap:6px;}
+.conn-btn{
+border:none;border-radius:8px;font-size:11.5px;font-weight:700;padding:7px 12px;white-space:nowrap;
+}
+.conn-btn-keep{background:var(--green-bg);color:var(--green-ink);}
+.conn-btn-keep:hover{background:#DCF3E2;}
+.conn-btn-discard{background:var(--red-bg);color:var(--red-ink);}
+.conn-btn-discard:hover{background:#FADAD6;}
+.conn-btn-undo{background:var(--line-soft);color:var(--ink-soft);}
+.conn-btn-undo:hover{background:var(--line);}
+.all-conn-empty{padding:40px 0;text-align:center;color:var(--ink-faint);font-size:13px;}
 ::selection{background:#FFE0B2;}
 </style>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -335,6 +373,7 @@ Connect LinkedIn
 <div id="liConnected" class="li-status" style="display:none;">
 <span class="li-dot"></span>
 <span id="liStatusText">Connected</span>
+<button id="liViewAllBtn">View all</button>
 <button id="liDisconnectBtn">Disconnect</button>
 </div>
 <div class="profile-pill">RR</div>
@@ -365,6 +404,26 @@ Connect LinkedIn
 <div class="li-modal-actions">
 <button class="li-btn-secondary" id="liCancelBtn">Cancel</button>
 </div>
+</div>
+</div>
+
+<!-- All Connections browser modal -->
+<div class="li-modal-overlay" id="allConnOverlay">
+<div class="li-modal all-conn-modal">
+<div class="all-conn-head">
+<h3 id="allConnTitle">Your connections</h3>
+<button class="all-conn-close" id="allConnClose">&times;</button>
+</div>
+<div class="search all-conn-search">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#AEAEB2" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+<input id="allConnSearch" type="text" placeholder="Search by name or company">
+</div>
+<div class="all-conn-tabs" id="allConnTabs">
+<button class="all-conn-tab active" data-tab="review">To review</button>
+<button class="all-conn-tab" data-tab="kept">Kept</button>
+<button class="all-conn-tab" data-tab="discarded">Discarded</button>
+</div>
+<div class="all-conn-list" id="allConnList"></div>
 </div>
 </div>
 
@@ -891,6 +950,24 @@ document.getElementById("refreshNews").addEventListener("click", triggerNewsRefr
 // ---------- LINKEDIN CONNECT ----------
 const LI_STORAGE_KEY = "heatTheSpot_linkedInConnections_v1";
 const LI_MOVES_KEY = "heatTheSpot_linkedInMoves_v1";
+let ALL_CONNECTIONS = [];
+
+function buildAllConnections(rows){
+return rows.map(r=>{
+const first = r["first name"] || "";
+const last = r["last name"] || "";
+const company = r["company"] || r["current company"] || "";
+const position = r["position"] || r["current position"] || "";
+const agency = matchAgencyByCompany(company);
+return {
+key: personKey(r),
+name: `${first} ${last}`.trim() || "Unnamed",
+company: company || "Unknown company",
+position: position || "",
+tracked: !!(agency && !agency.excluded)
+};
+}).filter(c => c.name !== "Unnamed" || c.company !== "Unknown company");
+}
 
 // Build a lookup of simplified agency name -> agency object (includes excluded BBDO)
 const ALL_TRACKED = [...AGENCIES, {rank:999, name:EXCLUDED_AGENCY.name, conn:0, score:0, heat:0, access:0, trend:"steady", contacts:[], excluded:true, holdingGroup:EXCLUDED_AGENCY.holdingGroup}];
@@ -1091,6 +1168,107 @@ document.getElementById("liLastChecked").textContent = "Never updated";
 }
 }
 
+const CONN_DECISIONS_KEY = "heatTheSpot_connectionDecisions_v1";
+let connDecisions = {};
+let allConnActiveTab = "review";
+
+function loadConnDecisions(){
+try{
+const raw = localStorage.getItem(CONN_DECISIONS_KEY);
+connDecisions = raw ? JSON.parse(raw) : {};
+}catch(e){ connDecisions = {}; }
+}
+
+function saveConnDecisions(){
+try{ localStorage.setItem(CONN_DECISIONS_KEY, JSON.stringify(connDecisions)); }catch(e){}
+}
+
+function setConnDecision(key, decision){
+if(decision === null) delete connDecisions[key];
+else connDecisions[key] = decision;
+saveConnDecisions();
+renderAllConnections(document.getElementById("allConnSearch").value);
+updateAllConnTabCounts();
+}
+
+function updateAllConnTabCounts(){
+const kept = ALL_CONNECTIONS.filter(c=>connDecisions[c.key]==="kept").length;
+const discarded = ALL_CONNECTIONS.filter(c=>connDecisions[c.key]==="discarded").length;
+const review = ALL_CONNECTIONS.length - kept - discarded;
+document.querySelectorAll("#allConnTabs .all-conn-tab").forEach(btn=>{
+const t = btn.dataset.tab;
+const count = t==="review"?review:t==="kept"?kept:discarded;
+btn.textContent = `${t==="review"?"To review":t==="kept"?"Kept":"Discarded"} (${count})`;
+});
+}
+
+function renderAllConnections(query){
+const list = document.getElementById("allConnList");
+const q = (query||"").trim().toLowerCase();
+let filtered = ALL_CONNECTIONS.filter(c=>{
+const decision = connDecisions[c.key] || "review";
+return decision === allConnActiveTab;
+});
+if(q){
+filtered = filtered.filter(c =>
+c.name.toLowerCase().includes(q) || c.company.toLowerCase().includes(q)
+);
+}
+if(!filtered.length){
+list.innerHTML = `<div class="all-conn-empty">${q ? `No connections match "${query}"` : (allConnActiveTab==="review" ? "All caught up — nothing left to review." : `No ${allConnActiveTab} connections yet.`)}</div>`;
+return;
+}
+const sorted = [...filtered].sort((a,b)=> a.company.localeCompare(b.company) || a.name.localeCompare(b.name));
+list.innerHTML = sorted.map(c=>{
+const actions = allConnActiveTab === "review"
+? `<button class="conn-btn conn-btn-keep" onclick="setConnDecision('${c.key.replace(/'/g,"\\'")}','kept')">Keep</button>
+<button class="conn-btn conn-btn-discard" onclick="setConnDecision('${c.key.replace(/'/g,"\\'")}','discarded')">Discard</button>`
+: `<button class="conn-btn conn-btn-undo" onclick="setConnDecision('${c.key.replace(/'/g,"\\'")}',null)">Undo</button>`;
+return `
+<div class="conn-card">
+<div class="avatar">${initials(c.name)}</div>
+<div class="conn-card-info">
+<div class="conn-card-name">${c.name}</div>
+${c.position ? `<div class="conn-card-title">${c.position}</div>` : ""}
+<div class="conn-card-company">${c.company}</div>
+${c.tracked ? '<span class="conn-card-tracked">Tracked agency</span>' : ""}
+</div>
+<div class="conn-card-actions">${actions}</div>
+</div>`;
+}).join("");
+}
+
+function openAllConnModal(){
+loadConnDecisions();
+allConnActiveTab = "review";
+document.querySelectorAll("#allConnTabs .all-conn-tab").forEach(b=>b.classList.toggle("active", b.dataset.tab==="review"));
+document.getElementById("allConnTitle").textContent = `Your connections (${ALL_CONNECTIONS.length})`;
+document.getElementById("allConnSearch").value = "";
+updateAllConnTabCounts();
+renderAllConnections("");
+document.getElementById("allConnOverlay").classList.add("open");
+}
+
+function closeAllConnModal(){
+document.getElementById("allConnOverlay").classList.remove("open");
+}
+
+document.getElementById("liViewAllBtn").addEventListener("click", openAllConnModal);
+document.getElementById("allConnClose").addEventListener("click", closeAllConnModal);
+document.getElementById("allConnOverlay").addEventListener("click", (e)=>{
+if(e.target.id === "allConnOverlay") closeAllConnModal();
+});
+document.getElementById("allConnSearch").addEventListener("input", (e)=>{
+renderAllConnections(e.target.value);
+});
+document.getElementById("allConnTabs").addEventListener("click", (e)=>{
+const btn = e.target.closest(".all-conn-tab");
+if(!btn) return;
+allConnActiveTab = btn.dataset.tab;
+document.querySelectorAll("#allConnTabs .all-conn-tab").forEach(b=>b.classList.toggle("active", b===btn));
+renderAllConnections(document.getElementById("allConnSearch").value);
+});
+
 function saveConnectionsToStorage(rows){
 try{
 localStorage.setItem(LI_STORAGE_KEY, JSON.stringify({savedAt: Date.now(), rows}));
@@ -1104,6 +1282,7 @@ if(!raw) return false;
 const parsed = JSON.parse(raw);
 if(!parsed.rows || !parsed.rows.length) return false;
 const matchedCount = processConnectionRows(parsed.rows);
+ALL_CONNECTIONS = buildAllConnections(parsed.rows);
 setLiConnectedUI(matchedCount, parsed.rows.length);
 return true;
 }catch(e){ return false; }
@@ -1153,6 +1332,7 @@ const existingMoves = loadStoredMoves();
 saveStoredMoves([...newMoves, ...existingMoves]);
 }
 const matchedCount = processConnectionRows(rows);
+ALL_CONNECTIONS = buildAllConnections(rows);
 saveConnectionsToStorage(rows);
 setLiConnectedUI(matchedCount, rows.length);
 renderRows();
@@ -1199,6 +1379,7 @@ if(e.dataTransfer.files[0]) handleLinkedInFile(e.dataTransfer.files[0]);
 
 document.getElementById("liDisconnectBtn").addEventListener("click", ()=>{
 localStorage.removeItem(LI_STORAGE_KEY);
+ALL_CONNECTIONS = [];
 AGENCIES.forEach(restoreAgencyToSeed);
 setLiDisconnectedUI();
 renderRows();
