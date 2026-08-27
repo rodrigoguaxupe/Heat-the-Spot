@@ -951,6 +951,7 @@ document.getElementById("refreshNews").addEventListener("click", triggerNewsRefr
 const LI_STORAGE_KEY = "heatTheSpot_linkedInConnections_v1";
 const LI_MOVES_KEY = "heatTheSpot_linkedInMoves_v1";
 let ALL_CONNECTIONS = [];
+let RAW_CONNECTION_ROWS = [];
 
 function buildAllConnections(rows){
 return rows.map(r=>{
@@ -1067,6 +1068,7 @@ const position = r["position"] || r["current position"] || "";
 const first = r["first name"] || "";
 const last = r["last name"] || "";
 if(!company || !first) return;
+if(connDecisions[personKey(r)] !== "kept") return; // only explicitly kept contacts count toward scores
 const agency = matchAgencyByCompany(company);
 if(!agency || agency.excluded) return;
 matchedCount++;
@@ -1189,6 +1191,12 @@ else connDecisions[key] = decision;
 saveConnDecisions();
 renderAllConnections(document.getElementById("allConnSearch").value);
 updateAllConnTabCounts();
+if(RAW_CONNECTION_ROWS.length){
+const matchedCount = processConnectionRows(RAW_CONNECTION_ROWS);
+renderRows();
+updateFooterCounts();
+document.getElementById("liStatusText").textContent = `${matchedCount} matched of ${RAW_CONNECTION_ROWS.length}`;
+}
 }
 
 function updateAllConnTabCounts(){
@@ -1281,6 +1289,8 @@ const raw = localStorage.getItem(LI_STORAGE_KEY);
 if(!raw) return false;
 const parsed = JSON.parse(raw);
 if(!parsed.rows || !parsed.rows.length) return false;
+loadConnDecisions();
+RAW_CONNECTION_ROWS = parsed.rows;
 const matchedCount = processConnectionRows(parsed.rows);
 ALL_CONNECTIONS = buildAllConnections(parsed.rows);
 setLiConnectedUI(matchedCount, parsed.rows.length);
@@ -1331,6 +1341,8 @@ if(newMoves.length){
 const existingMoves = loadStoredMoves();
 saveStoredMoves([...newMoves, ...existingMoves]);
 }
+loadConnDecisions();
+RAW_CONNECTION_ROWS = rows;
 const matchedCount = processConnectionRows(rows);
 ALL_CONNECTIONS = buildAllConnections(rows);
 saveConnectionsToStorage(rows);
@@ -1380,6 +1392,7 @@ if(e.dataTransfer.files[0]) handleLinkedInFile(e.dataTransfer.files[0]);
 document.getElementById("liDisconnectBtn").addEventListener("click", ()=>{
 localStorage.removeItem(LI_STORAGE_KEY);
 ALL_CONNECTIONS = [];
+RAW_CONNECTION_ROWS = [];
 AGENCIES.forEach(restoreAgencyToSeed);
 setLiDisconnectedUI();
 renderRows();
